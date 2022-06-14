@@ -28,6 +28,7 @@ class Bill(UUIDMixin, UpdateTimeMixin):
     )
     item_uuid = models.UUIDField(verbose_name='uuid Объекта')
     amount = models.DecimalField(verbose_name='Сумма оплаты', max_digits=16, decimal_places=2,)
+    payment_uuid = models.UUIDField(verbose_name='uuid Платежа с Yookassa', null=True, blank=True)
 
     class Meta:
         db_table = 'bill'
@@ -52,10 +53,8 @@ class Bill(UUIDMixin, UpdateTimeMixin):
         """
         Расширение метода сохранения, для отправки сообщений в Kafka.
         """
-        logger.info(f'Bill before saving [{self.pk}]')
         super().save(*args, **kwargs)
         # Отправляем сообщение при обновлении статуса
-        logger.info(f'Bill after saving [{self.pk}]')
         self._produce_bill_message()
 
     def _produce_bill_message(self):

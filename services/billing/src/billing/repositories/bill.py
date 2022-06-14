@@ -46,8 +46,16 @@ class BillRepository(BaseRepository):
     @classmethod
     def get_user_bills(cls, user_uuid: str) -> List[Bill]:
         """Выдача оплат определенного пользователя."""
-        logger.info(f'User {user_uuid} asked for a list of bills.')
         return cls.MODEL_CLASS.objects.filter(user_uuid=user_uuid)
+
+    @classmethod
+    def refund_bill(cls, bill_uuid: str) -> None:
+        bill: Bill = cls.get_by_id(item_uuid=bill_uuid)
+        logger.info(f'Refund bill with {bill_uuid=}. Payment {bill.payment_uuid=} & {bill.amount=}')
+        payment_system.refund_payment(
+            payment_id=bill.payment_uuid,
+            amount=bill.amount,
+        )
 
     @classmethod
     def determine_bill_status(cls, bill_status: str) -> str:
@@ -55,11 +63,24 @@ class BillRepository(BaseRepository):
         return payment_system.convert_bill_status(bill_status)
 
     @classmethod
-    def update_bill_status(cls, bill_uuid: str, bill_status: str) -> None:
+    def update_bill_status(cls, bill_uuid: str, bill_payment_id: str, bill_status: str) -> None:
         """Обновление статуса Оплаты."""
         bill = cls.MODEL_CLASS.objects.get(id=bill_uuid)
         logger.info(f'Bill [{bill_uuid=}] status update to "{bill_status}".')
         bill.status = bill_status
+        bill.payment_uuid = bill_payment_id
+        bill.save()
+
+    @classmethod
+    def resave_refund(cls, bill_payment_id: str, refund_payment_id: str, bill_status: str) -> None:
+        """Обновление статуса Оплаты."""
+        bill = cls.MODEL_CLASS.objects.filter(payment_uuid=bill_payment_id).first()
+        logger.info(
+            f'Bill [{bill.id=}] status update to "{bill_status}".'
+            f'Payment id update from "{bill.payment_uuid}" to "{bill_payment_id}"'
+        )
+        bill.status = bill_status
+        bill.payment_uuid = refund_payment_id
         bill.save()
 
     @classmethod
@@ -136,7 +157,6 @@ class BillRepository(BaseRepository):
             logger.info(message, extra=bill_schema.dict())
             raise ValidationError({'detail': message})
 
-        logger.info(f'{description}. Amount: {amount}.', extra=bill_schema.dict())
         return BillItemData(description=description, amount=amount)
 
     @classmethod

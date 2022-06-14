@@ -23,7 +23,6 @@ services:
       - external_movie_network
     healthcheck:
       test: ["CMD" ,"nc", "-vz", "-w1", "localhost", "8000" ]
-      start_period: 30s
       interval: 5s
       timeout: 20s
       retries: 100
